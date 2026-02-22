@@ -1,78 +1,93 @@
 import streamlit as st
 import google.generativeai as genai
-import os
 import time
 
-# 1. Page Configuration
-st.set_page_config(page_title="Your Viral Partner", page_icon="🚀", layout="centered")
-st.title("🚀 Your Viral Partner: Global Audit")
-st.markdown("### Stop Guessing. Start Trending.")
+# 1. Page Configuration (The tab title and icon)
+st.set_page_config(page_title="Viral Partner AI", page_icon="🚀", layout="centered")
 
-# 2. API Configuration (2026 Stable)
-api_key = os.getenv("GOOGLE_API_KEY")
-if not api_key:
-    st.error("Please add your GOOGLE_API_KEY to the app secrets/env variables.")
-    st.stop()
-
-genai.configure(api_key=api_key)
-
-# 3. File Uploader
-uploaded_file = st.file_uploader("Upload your MP4 Reel (Max 60s)", type=['mp4', 'mov'])
-
-if uploaded_file is not None:
-    # Save file locally to bypass buffer errors
-    with open("temp_video.mp4", "wb") as f:
-        f.write(uploaded_file.getbuffer())
+# 2. Custom CSS for a "Premium" Look
+st.markdown("""
+    <style>
+    /* Main Background */
+    .stApp {
+        background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+        color: white;
+    }
     
-    st.video("temp_video.mp4")
+    /* Glassmorphism Card for Results */
+    .result-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        padding: 25px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        margin-top: 20px;
+    }
+    
+    /* Custom Button */
+    .stButton>button {
+        background: linear-gradient(45deg, #ff00cc, #3333ff);
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 25px;
+        font-weight: bold;
+        transition: 0.3s;
+    }
+    .stButton>button:hover {
+        transform: scale(1.05);
+        box-shadow: 0px 0px 15px #ff00cc;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-    if st.button("Analyze Viral Potential"):
-        try:
-            with st.status("AI is watching your video...", expanded=True) as status:
-                # STEP 1: Upload to Gemini File API
-                st.write("Uploading to Google Cloud...")
+# 3. Header Section
+st.title("🚀 Viral Partner AI")
+st.subheader("Turn your reels into viral sensations.")
+st.write("Upload your video and let the AI audit your hook, lighting, and pacing.")
+
+# 4. API Key Setup
+api_key = st.secrets.get("GOOGLE_API_KEY")
+if not api_key:
+    st.error("Please add your GOOGLE_API_KEY in Streamlit Secrets.")
+else:
+    genai.configure(api_key=api_key)
+    # Using the most stable 2026 model name
+    model = genai.GenerativeModel(model_name="gemini-1.5-flash-latest")
+
+    # 5. File Uploader
+    uploaded_file = st.file_uploader("📂 Upload your Reel (MP4)", type=["mp4", "mov", "avi"])
+
+    if uploaded_file is not None:
+        st.video(uploaded_file)
+        
+        if st.button("✨ Audit My Reel"):
+            with st.status("🤖 AI is watching your video...", expanded=True) as status:
+                # Save temp file
+                with open("temp_video.mp4", "wb") as f:
+                    f.write(uploaded_file.read())
+                
+                # Upload to Google
                 video_file = genai.upload_file(path="temp_video.mp4")
                 
-                # STEP 2: The 'Anti-Error' Loop (Critical for 2026)
-                # This prevents the 404/Processing error you saw before
+                # Wait for processing
                 while video_file.state.name == "PROCESSING":
                     time.sleep(2)
                     video_file = genai.get_file(video_file.name)
                 
-                if video_file.state.name == "FAILED":
-                    st.error("Video processing failed at Google's end.")
-                    st.stop()
+                # Prompt
+                prompt = "Analyze this video for viral potential. Give a score out of 100, analyze the first 3-second hook, and suggest 3 viral captions."
+                response = model.generate_content([video_file, prompt])
+                status.update(label="✅ Audit Complete!", state="complete")
 
-                st.write("Analyzing hooks and global trends...")
-                
-                # STEP 3: Generate Content using Gemini 2.0 Flash
-                model = genai.GenerativeModel(model_name="gemini-1.5-flash-latest")
-                
-                prompt = """
-                Perform a global viral audit on this video. 
-                Return the following sections:
-                1. VIRAL SCORE: A percentage (0-100%) based on 2026 retention algorithms.
-                2. HOOK AUDIT: Analyze the first 2.8 seconds. What works? What doesn't?
-                3. GLOBAL CAPTIONS: Provide 3 captions (1 English, 1 Hinglish, 1 Short-Mystery).
-                4. HASHTAG STRATEGY: 5 tags for Global reach and 5 for Local reach.
-                5. EDITING FIX: One specific change to increase watch time.
-                """
-                
-                response = model.generate_content([prompt, video_file])
-                
-                status.update(label="Analysis Complete!", state="complete", expanded=False)
+            # 6. Display Results in a Beautiful Card
+            st.markdown(f"""
+                <div class="result-card">
+                    <h2>📊 Viral Audit Report</h2>
+                    <p>{response.text}</p>
+                </div>
+            """, unsafe_allow_html=True)
 
-            # Display Results
-            st.success("✅ Your Viral Audit is Ready!")
-            st.markdown(response.text)
-            
-            # Cleanup Google Cloud Storage
-            genai.delete_file(video_file.name)
-
-        except Exception as e:
-            st.error(f"Business Logic Error: {e}")
-            st.info("Tip: If you see a 404, check if your API Key has 'Gemini 2.0 Flash' enabled in Google AI Studio.")
-
-# 4. Footer
-st.divider()
-st.caption("Powered by Your Viral Partner © 2026")
+# 7. Footer
+st.markdown("---")
+st.caption("Powered by Gemini 1.5 Flash • Created by mcsairajmusic")
