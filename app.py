@@ -1,72 +1,111 @@
-import streamlit as st
-import time
+from flask import Flask, request, render_template_string
+import requests
 import os
-from google import genai
 
-# --------------------
-# Page Config
-# --------------------
-st.set_page_config(page_title="Viral Partner AI", page_icon="🚀")
+app = Flask(__name__)
 
-st.title("🚀 Viral Partner AI")
-st.write("Upload your reel and let AI analyze its viral potential.")
+# === SET YOUR GROQ API KEY HERE ===
+GROQ_API_KEY = "YOUR_GROQ_API_KEY"  # Replace with your key
 
-# --------------------
-# API Key
-# --------------------
-api_key = st.secrets.get("GOOGLE_API_KEY")
+# Function to call Groq AI
+def generate_groq_caption(topic, audience, emotion, platform):
+    prompt = f"""
+You are a social media assistant.
+Generate:
+1. A catchy caption
+2. 5 relevant hashtags
+3. Short feedback about this video topic
 
-if not api_key:
-    st.error("Add GOOGLE_API_KEY in Streamlit Secrets.")
-    st.stop()
+Video Topic: {topic}
+Target Audience: {audience}
+Emotion: {emotion}
+Platform: {platform}
+"""
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "prompt": prompt,
+        "max_tokens": 150
+    }
 
-client = genai.Client(api_key=api_key)
+    # Groq AI endpoint (latest example)
+    url = "https://api.groq.ai/v1/engines/groq-2.5-flash-lite/completions"
 
-# --------------------
-# Upload Video
-# --------------------
-uploaded_file = st.file_uploader("Upload Reel (MP4)", type=["mp4", "mov", "avi"])
+    try:
+        response = requests.post(url, json=data, headers=headers, timeout=15)
+        response.raise_for_status()
+        result = response.json()
+        # Groq API returns text in 'choices[0].text'
+        return result["choices"][0]["text"].strip()
+    except Exception as e:
+        return f"Error contacting Groq AI: {e}"
 
-if uploaded_file:
-    st.video(uploaded_file)
+# HTML template
+HTML_TEMPLATE = """
+<!doctype html>
+<html>
+<head>
+<title>Your Viral Partner 🚀</title>
+<style>
+body { font-family: Arial; background:#1e1e2f; color:#fff; padding:20px; }
+input, select, textarea { width:100%; padding:10px; margin:10px 0; border-radius:5px; border:none; }
+button { padding:10px 20px; margin:10px 0; border-radius:5px; background:#ff007f; color:#fff; border:none; cursor:pointer; }
+button:hover { background:#ff3399; }
+.result { background: rgba(255,255,255,0.1); padding:15px; border-radius:10px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>Your Viral Partner 🚀 (Groq AI)</h1>
 
-    if st.button("✨ Audit My Reel"):
-        try:
-            with st.spinner("Analyzing video..."):
+{% if not result %}
+<form method="POST">
+<label>Video Topic (e.g., workout, travel, food):</label>
+<input name="topic" value="{{topic}}">
+<label>Target Audience:</label>
+<input name="audience" value="{{audience}}">
+<label>Emotion:</label>
+<input name="emotion" value="{{emotion}}">
+<label>Platform (Instagram, TikTok, YouTube Shorts):</label>
+<select name="platform">
+<option {% if platform=='Instagram' %}selected{% endif %}>Instagram</option>
+<option {% if platform=='TikTok' %}selected{% endif %}>TikTok</option>
+<option {% if platform=='YouTube Shorts' %}selected{% endif %}>YouTube Shorts</option>
+</select>
+<button type="submit">Generate 🚀</button>
+</form>
+{% else %}
+<h2>📊 Generated Result:</h2>
+<div class="result">{{ result }}</div>
+<form method="GET">
+<button type="submit">Start New Analysis</button>
+</form>
+{% endif %}
 
-                # Save temporary file
-                temp_path = "temp_video.mp4"
-                with open(temp_path, "wb") as f:
-                    f.write(uploaded_file.read())
+</body>
+</html>
+"""
 
-                # Upload file
-                video_file = client.files.upload(file=temp_path)
+@app.route("/", methods=["GET","POST"])
+def index():
+    topic = request.form.get("topic","")
+    audience = request.form.get("audience","")
+    emotion = request.form.get("emotion","")
+    platform = request.form.get("platform","Instagram")
+    result = None
 
-                # Wait until ready
-                while video_file.state == "PROCESSING":
-                    time.sleep(2)
-                    video_file = client.files.get(name=video_file.name)
+    if request.method=="POST":
+        result = generate_groq_caption(topic, audience, emotion, platform)
 
-                prompt = """
-                Analyze this Instagram reel.
+    return render_template_string(
+        HTML_TEMPLATE,
+        topic=topic,
+        audience=audience,
+        emotion=emotion,
+        platform=platform,
+        result=result
+    )
 
-                Give:
-                1. Viral score (out of 100)
-                2. Hook feedback
-                3. Retention feedback
-                4. 3 viral captions
-                5. 5 hashtags
-                """
-
-                response = client.models.generate_content(
-                    model="gemini-1.5-flash",
-                    contents=[video_file, prompt],
-                )
-
-                os.remove(temp_path)
-
-            st.success("Audit Complete ✅")
-            st.write(response.text)
-
-        except Exception as e:
-            st.error(f"Error: {str(e)}")
+if __name__=="__main__":
+    app.run(host="0.0.0.0", port=8080)
