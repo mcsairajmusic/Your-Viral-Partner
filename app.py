@@ -53,9 +53,8 @@ if not api_key:
 else:
     genai.configure(api_key=api_key)
     # Using the most stable 2026 model name
-    model = genai.GenerativeModel(model_name="gemini-1.5-flash-latest")
-
-    # 5. File Uploader
+    model = genai.GenerativeModel(model_name="gemini-1.5-flash-001")
+   # 5. File Uploader
     uploaded_file = st.file_uploader("📂 Upload your Reel (MP4)", type=["mp4", "mov", "avi"])
 
     if uploaded_file is not None:
