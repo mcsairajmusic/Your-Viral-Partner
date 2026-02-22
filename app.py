@@ -4,8 +4,8 @@ import os
 
 app = Flask(__name__)
 
-# === SET YOUR GROQ API KEY HERE ===
-GROQ_API_KEY = "YOUR_GROQ_API_KEY"  # Replace with your key
+# Groq API Key from environment variable
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 
 # Function to call Groq AI
 def generate_groq_caption(topic, audience, emotion, platform):
@@ -30,14 +30,12 @@ Platform: {platform}
         "max_tokens": 150
     }
 
-    # Groq AI endpoint (latest example)
     url = "https://api.groq.ai/v1/engines/groq-2.5-flash-lite/completions"
 
     try:
         response = requests.post(url, json=data, headers=headers, timeout=15)
         response.raise_for_status()
         result = response.json()
-        # Groq API returns text in 'choices[0].text'
         return result["choices"][0]["text"].strip()
     except Exception as e:
         return f"Error contacting Groq AI: {e}"
@@ -50,7 +48,7 @@ HTML_TEMPLATE = """
 <title>Your Viral Partner 🚀</title>
 <style>
 body { font-family: Arial; background:#1e1e2f; color:#fff; padding:20px; }
-input, select, textarea { width:100%; padding:10px; margin:10px 0; border-radius:5px; border:none; }
+input, select { width:100%; padding:10px; margin:10px 0; border-radius:5px; border:none; }
 button { padding:10px 20px; margin:10px 0; border-radius:5px; background:#ff007f; color:#fff; border:none; cursor:pointer; }
 button:hover { background:#ff3399; }
 .result { background: rgba(255,255,255,0.1); padding:15px; border-radius:10px; white-space: pre-wrap; }
@@ -61,13 +59,13 @@ button:hover { background:#ff3399; }
 
 {% if not result %}
 <form method="POST">
-<label>Video Topic (e.g., workout, travel, food):</label>
+<label>Video Topic:</label>
 <input name="topic" value="{{topic}}">
 <label>Target Audience:</label>
 <input name="audience" value="{{audience}}">
 <label>Emotion:</label>
 <input name="emotion" value="{{emotion}}">
-<label>Platform (Instagram, TikTok, YouTube Shorts):</label>
+<label>Platform:</label>
 <select name="platform">
 <option {% if platform=='Instagram' %}selected{% endif %}>Instagram</option>
 <option {% if platform=='TikTok' %}selected{% endif %}>TikTok</option>
@@ -82,7 +80,6 @@ button:hover { background:#ff3399; }
 <button type="submit">Start New Analysis</button>
 </form>
 {% endif %}
-
 </body>
 </html>
 """
