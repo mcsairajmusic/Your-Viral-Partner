@@ -46,7 +46,7 @@ if uploaded_file is not None:
                 st.write("Analyzing hooks and global trends...")
                 
                 # STEP 3: Generate Content using Gemini 2.0 Flash
-                model = genai.GenerativeModel(model_name="gemini-2.0-flash")
+                model = genai.GenerativeModel(model_name="gemini-1.5-flash")
                 
                 prompt = """
                 Perform a global viral audit on this video. 
